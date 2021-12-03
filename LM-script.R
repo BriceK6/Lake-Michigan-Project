@@ -1,0 +1,160 @@
+library(readr)
+GLOS_data_export_45161 <- read_csv("GLOS_data_export_45161.csv", skip = 1)
+lake <- GLOS_data_export_45161
+library(tidyverse)
+library(dplyr)
+library(purrr)
+library(lubridate)
+
+
+
+
+#change to shorter column names 
+ lake <- lake %>%
+   rename(
+     date_time = `Date/Time (UTC)`,
+     wind_speed = `Wind_Speed (kts)`,
+     wind_gust = `Wind_Gust (kts)`,
+     wind_direction = `Wind_from_Direction (degrees_true)`,
+     water_temp = `Water_Temperature_at_Surface (fahrenheit)`,
+     wave_height = `Significant_Wave_Height (ft)`,
+     wave_period = `Significant_Wave_Period (s)`,
+     wave_direction = `significant_wave_from_direction (degrees_true)`,
+     air_temp = `Air_Temperature (fahrenheit)`,
+     air_pressure = `Air_Pressure (mb)`,
+     therm_1m = `Thermistor_String_at_1m (fahrenheit)`,
+     therm_22m = `Thermistor_String_at_22m (fahrenheit)`
+   )
+
+ # add month to table ****fix 
+   
+ lake$date_time <- mdy_hm(lake$date_time)
+ 
+ lake <- lake %>%
+    mutate(as_datetime(date_time))
+ 
+ lake <- lake %>%
+    mutate(month(date_time, label = TRUE))
+lake <- lake %>%
+    rename(month_date = `month(date_time, label = TRUE)`)
+
+lake <- lake %>%
+   mutate(year(date_time)) 
+lake <- lake %>%
+  rename(year_date = `year(date_time)`)
+
+lake %>%
+  select(date_time, month_date)%>%
+  filter(is.na(month_date))
+
+#finding missing and incorrect data
+lake %>%
+  summarise(meanWind = mean(wind_speed), minWind = min(wind_speed), maxWind = max(wind_speed))
+lake %>%
+  filter(wind_speed >=0 & wind_speed < 194)%>%
+  summarise(meanWind = mean(wind_speed), minWind = min(wind_speed), maxWind = max(wind_speed))
+
+lake %>%
+  summarise(meanWave = mean(wave_height), minWave = min(wave_height), maxWave = max(wave_height))
+lake %>%
+  filter(wave_height >=0 & wave_height < 30)%>%
+  summarise(meanWave = mean(wave_height), minWave = min(wave_height), maxWave = max(wave_height))
+  
+ 
+#create tibble of wind speed and direction 
+wind <- tibble(lake[,c(1:4,14,15)]) %>%
+  filter(wind_speed >= 0 & wind_speed < 194)
+wind_clean <- wind %>% 
+  filter(wind_gust != -19436.45616, wind_direction >= 0 & wind_direction <= 360)
+
+wind_clean %>%
+  summarise(min = min(wind_gust), mean = mean(wind_gust), max = max(wind_gust))
+
+  #add mph to wind             
+wind <- wind %>%
+  mutate(mph = wind_speed*1.15078)
+
+
+#create wave tibble
+wave <- tibble(lake[,c(1,6:8, 14:15)])
+#removing missing wave height and wave period
+wave <- subset(wave, wave$wave_height!= -32805.11916 )
+wave2 <- subset(wave, wave$wave_period != -9999 & wave$wave_direction != 0)
+
+wave2 <- wave2 %>%
+  filter(wave_direction >= 0 & wave_direction < 360)
+
+wave2 %>%
+  summarize(mean(wave_period), min(wave_period), max(wave_period))
+wave2 %>%
+  summarize(mean(wave_direction), min(wave_direction), max(wave_direction))
+
+#surfable waves
+wave3 <- subset(wave2, wave2$wave_height >= 2.5)
+wave3 %>%
+  ggplot(mapping = aes(x = month_date, y = wave_height))+
+  geom_point(size = .1)+
+  geom_smooth()
+
+wave3 %>%
+  count(month_date)
+wave2 %>%
+  count(month_date)
+wave %>%
+  count(month_date)
+
+#ideal surfing conditions
+wavewind <- lake %>%
+  select(date_time, wind_speed, wave_height, wind_direction, wave_direction, month_date, year_date ) %>%
+  filter(wind_speed > 0 & wind_speed < 150, wave_height >= 0 & wave_height < 30, wind_direction >= 0 & wind_direction <= 360, wave_direction >=0 & wave_direction <= 360) %>%
+  arrange(date_time)
+
+surfIdeal <- wavewind %>%
+  filter(wind_speed > 0 & wind_speed < 10, wave_height >= 2.5 & wave_height < 300) %>%
+  arrange(desc(wave_height))
+surfIdeal %>%
+  ggplot(mapping = aes(x = wind_speed, y = wave_height))+
+  geom_point(size = .5)+
+  geom_smooth()+
+  labs(title = "Ideal surf conditions Wave vs Wind")
+
+
+
+      
+    #ideal kite conditions for beginners 
+kiteIdeal <- wavewind %>%
+  filter(wind_speed > 10 & wave_height < 2 & wind_direction > 140)
+  
+
+
+#plot relationship between wind speed and wave size
+ggplot(data = wavewind, mapping = aes(x = wind_speed, y = wave_height))+
+  geom_point(size = .1)+
+  geom_smooth()+
+  labs(title = "Wind Speed vs. Wave Height")
+
+# plot wave height based on wind direction , 245 is parallel
+wavewind %>%
+  select(wind_direction)%>%
+  summarise(min = min(wind_direction), mean = mean(wind_direction), max = max(wind_direction))
+
+ggplot(data = wavewind, mapping = aes(x = wind_direction, y = wave_height))+
+  geom_point(size = .1)+
+  geom_smooth()+
+  labs(title = "Wind Direction vs. Wave Height")
+
+#time series graph 
+
+  
+ 
+
+#summary statistics 
+wave %>%
+  summarise(mean = mean(wave_height))
+
+wave2 %>%
+  summarise(mean = mean(wave_height), meanPeriod = mean(wave_period), meanDirection = mean(wave_direction))
+
+wave3 %>%
+  summarise(mean = mean(wave_height), min = min(wave_height), max = max(wave_height), meanPeriod = mean(wave_period), meanDirection = mean(wave_direction))
+
