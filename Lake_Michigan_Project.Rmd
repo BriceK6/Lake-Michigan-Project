@@ -1,5 +1,6 @@
 ---
-title: "Lake"
+title: "Lake Michigan Surf and Kite Project"
+author: "Brice Kramer"
 output: html_document
 ---
 
@@ -7,25 +8,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
 
 ```{r import}
 library(readr)
@@ -242,7 +225,7 @@ lake %>%
   filter(wave_height >=0 & wave_height < 30, wind_speed >= 0 & wind_speed < 100)%>%
   group_by(month_date, year_date)%>%
   ggplot(mapping = aes(month(date_time, label=TRUE, abbr=TRUE), 
-     group=factor(year(date_time)), y = yearmon(wave_height), colour=factor(year(date_time)))) +
+     group=factor(year(date_time)), y = wave_height, colour=factor(year(date_time)))) +
   geom_line() +
   geom_point() +
   labs(x="Month", y = "Wave Height", colour="Year") +
