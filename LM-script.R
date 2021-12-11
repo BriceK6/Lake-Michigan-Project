@@ -25,6 +25,8 @@ library(lubridate)
      therm_1m = `Thermistor_String_at_1m (fahrenheit)`,
      therm_22m = `Thermistor_String_at_22m (fahrenheit)`
    )
+ 
+ 
 
  # add month to table ****fix 
    
@@ -144,11 +146,28 @@ ggplot(data = wavewind, mapping = aes(x = wind_direction, y = wave_height))+
   labs(title = "Wind Direction vs. Wave Height")
 
 #time series graph 
+monthly <- function(var_y) {
+  lake %>%
+    select(date_time, month_date, wave_height, wind_speed)%>%
+    filter(wave_height >=0 & wave_height < 30, wind_speed >= 0 & wind_speed < 100)%>%
+    group_by(month_date(date_time))%>%
+    summarise(waveH = mean(wave_height), windS = mean(wind_speed))
+  
+    ggplot(mapping = aes(x = month_time, y = var_y)) +
+    geom_boxplot()
+}
+
+
+lake %>%
+  select(date_time, month_time, wave_height, wind_speed)%>%
+  filter(wave_height >=0 & wave_height < 30, wind_speed >= 0 & wind_speed < 100, ) %>%
+  
+  
 
   
  
 
-#summary statistics 
+#summary statistics I did this more towards the beginning to find outliers 
 wave %>%
   summarise(mean = mean(wave_height))
 
