@@ -5,11 +5,13 @@ library(tidyverse)
 library(dplyr)
 library(purrr)
 library(lubridate)
+library(zoo)
 
 
 
 
 #change to shorter column names 
+
  lake <- lake %>%
    rename(
      date_time = `Date/Time (UTC)`,
@@ -28,7 +30,7 @@ library(lubridate)
  
  
 
- # add month to table ****fix 
+ # add month and year to table ****fix 
    
  lake$date_time <- mdy_hm(lake$date_time)
  
@@ -46,8 +48,8 @@ lake <- lake %>%
   rename(year_date = `year(date_time)`)
 
 lake %>%
-  select(date_time, month_date)%>%
-  filter(is.na(month_date))
+  select(date_time, month_date, year_date)%>%
+  filter(is.na(month_date), is.na(year_date))
 
 #finding missing and incorrect data
 lake %>%
@@ -84,7 +86,7 @@ wave <- subset(wave, wave$wave_height!= -32805.11916 )
 wave2 <- subset(wave, wave$wave_period != -9999 & wave$wave_direction != 0)
 
 wave2 <- wave2 %>%
-  filter(wave_direction >= 0 & wave_direction < 360)
+  filter(wave_direction >= 0 & wave_direction <= 360)
 
 wave2 %>%
   summarize(mean(wave_period), min(wave_period), max(wave_period))
@@ -92,13 +94,13 @@ wave2 %>%
   summarize(mean(wave_direction), min(wave_direction), max(wave_direction))
 
 #surfable waves
-wave3 <- subset(wave2, wave2$wave_height >= 2.5)
-wave3 %>%
+surfWave <- subset(wave2, wave2$wave_height >= 2.5)
+surfWave %>%
   ggplot(mapping = aes(x = month_date, y = wave_height))+
   geom_point(size = .1)+
   geom_smooth()
 
-wave3 %>%
+surfWave %>%
   count(month_date)
 wave2 %>%
   count(month_date)
@@ -108,26 +110,57 @@ wave %>%
 #ideal surfing conditions
 wavewind <- lake %>%
   select(date_time, wind_speed, wave_height, wind_direction, wave_direction, month_date, year_date ) %>%
-  filter(wind_speed > 0 & wind_speed < 150, wave_height >= 0 & wave_height < 30, wind_direction >= 0 & wind_direction <= 360, wave_direction >=0 & wave_direction <= 360) %>%
+  filter(wind_speed >= 0 & wind_speed < 150, wave_height >= 0 & wave_height < 30, wind_direction >= 0 & wind_direction <= 360, wave_direction >=0 & wave_direction <= 360) %>%
   arrange(date_time)
 
 surfIdeal <- wavewind %>%
-  filter(wind_speed > 0 & wind_speed < 10, wave_height >= 2.5 & wave_height < 300) %>%
+  filter(wind_speed > 0 & wind_speed < 10, wave_height >= 2.5 & wave_height < 300)%>%
   arrange(desc(wave_height))
+  
+surfIdeal %>%  
+  summarize(meanWave = mean(wave_height), minWave = min(wave_height),
+            maxWave = max(wave_height), meanWind = mean(wind_speed),
+            minWind = min(wind_speed), maxWind = min(wind_speed), count = count(surfIdeal))
+  
 surfIdeal %>%
   ggplot(mapping = aes(x = wind_speed, y = wave_height))+
   geom_point(size = .5)+
-  geom_smooth()+
   labs(title = "Ideal surf conditions Wave vs Wind")
 
+surfIdeal %>%
+  ggplot(mapping = aes(x = wind_speed, y = wave_height))+
+  geom_bin2d()+
+  labs(title = "Density Plot of Ideal Surf Conditions")
 
+surfIdeal %>%
+  ggplot(mapping = aes(x = wind_direction, y = wave_height))+
+  geom_point(size = .5)+
+  labs(title = "Ideal surf conditions Wave vs Wind Direction")
 
-      
-    #ideal kite conditions for beginners 
-kiteIdeal <- wavewind %>%
-  filter(wind_speed > 10 & wave_height < 2 & wind_direction > 140)
+surfIdeal %>%
+  select(date_time, month_date, year_date, wave_height, wind_speed)%>%
+  group_by(month_date)%>%
+  summarise(waveH = mean(wave_height), windS = mean(wind_speed))%>%
+  ggplot(mapping = aes(x = month_date, y = waveH))+
+  geom_bar(stat = 'identity')+
+  labs(title = "Monthly Average Wave Height For Ideal Surf Conditions")
   
+surfIdeal %>%
+  select(date_time, month_date, year_date, wave_height, wind_speed)%>%
+  group_by(month_date)%>%
+  summarise(waveH = mean(wave_height), windS = mean(wind_speed))%>%
+  ggplot(mapping = aes(x = month_date, y = windS))+
+  geom_bar(stat = 'identity')+
+  labs(title = "Monthly Average Wind Speed For Ideal Surf Conditions")
 
+surfIdeal %>%
+  select(month_date)%>%
+  group_by(month_date)%>%
+  count(month_date)%>%
+  ggplot(mapping = aes(x = month_date, y = n))+
+  geom_bar(stat = 'identity')+
+  labs(title = "Monthly Number of Oberservations for Ideal Surfing")
+  
 
 #plot relationship between wind speed and wave size
 ggplot(data = wavewind, mapping = aes(x = wind_speed, y = wave_height))+
@@ -145,35 +178,87 @@ ggplot(data = wavewind, mapping = aes(x = wind_direction, y = wave_height))+
   geom_smooth()+
   labs(title = "Wind Direction vs. Wave Height")
 
-#time series graph 
-monthly <- function(var_y) {
-  lake %>%
-    select(date_time, month_date, wave_height, wind_speed)%>%
-    filter(wave_height >=0 & wave_height < 30, wind_speed >= 0 & wind_speed < 100)%>%
-    group_by(month_date(date_time))%>%
-    summarise(waveH = mean(wave_height), windS = mean(wind_speed))
+#Graph monthly aveages 
+monthly <- function(var_y) {}
   
-    ggplot(mapping = aes(x = month_time, y = var_y)) +
-    geom_boxplot()
-}
+lake %>%
+    select(date_time, month_date, year_date, wave_height, wind_speed)%>%
+    filter(wave_height >=0 & wave_height < 30, wind_speed >= 0 & wind_speed < 100)%>%
+    group_by(month_date)%>%
+    summarise(waveH = mean(wave_height), windS = mean(wind_speed))
 
+    # Doing the same thing with already filtered subset 
+wavewind %>%
+  select(date_time, month_date, year_date, wave_height, wind_speed)%>%
+  group_by(month_date)%>%
+  summarise(waveH = mean(wave_height), windS = mean(wind_speed))%>%
+  ggplot(mapping = aes(x = month_date, y = waveH))+
+    geom_bar(stat = 'identity')+
+    labs(title = "Monthly Average Wave Height")
+
+    #Summarize by month and year *notice missing years
+wavewind %>%
+  select(date_time, month_date, year_date, wave_height, wind_speed)%>%
+  group_by(month_date, year_date)%>%
+  summarise(waveH = mean(wave_height), windS = mean(wind_speed))
+    
+    #Same thing but with the original dataset only filtering out wind and wave
+    # notice only one more year was added
+lake %>%
+  select(date_time, month_date, year_date, wave_height, wind_speed)%>%
+  filter(wave_height >=0 & wave_height < 30, wind_speed >= 0 & wind_speed < 100)%>%
+  group_by(month_date, year_date)%>%
+  summarise(waveH = mean(wave_height), windS = mean(wind_speed))
+
+yearMonth <- lake %>%
+  mutate(month_year = yearmon(wave_height))
+
+# graph monthly 
+lake %>%
+  select(date_time, month_date, year_date, wave_height, wind_speed)%>%
+  filter(wave_height >=0 & wave_height < 30, wind_speed >= 0 & wind_speed < 100)%>%
+  group_by(month_date, year_date)%>%
+  ggplot(mapping = aes(month(date_time, label=TRUE, abbr=TRUE), 
+     group=factor(year(date_time)), y = yearmon(wave_height), colour=factor(year(date_time)))) +
+  geom_line() +
+  geom_point() +
+  labs(x="Month", colour="Year") +
+  theme_classic()
+
+#show variance in yearly monthly averages
+byMonthYear %>%
+  ggplot(mapping = aes(x = month_date,label=TRUE, abbr=TRUE, y = waveH, colour = year_date),
+         group=factor(year_date))+
+  geom_line() +
+  geom_point() +
+  labs(x="Month", y = "Wave Height")+
+  theme_classic()
 
 lake %>%
-  select(date_time, month_time, wave_height, wind_speed)%>%
-  filter(wave_height >=0 & wave_height < 30, wind_speed >= 0 & wind_speed < 100, ) %>%
-  
-  
+  select(date_time, month_date, wave_height, wind_speed)%>%
+  filter(wave_height >=0 & wave_height < 30, wind_speed >= 0 & wind_speed < 100, )
 
-  
- 
+#ideal kite conditions for beginners 
+kiteIdeal <- wavewind %>%
+  filter(wind_speed > 12 & wind_speed <16 & wave_height < 2.5 & wind_direction > 140 & wind_direction < 340)
+     #graph wind speeds for ideal kite conditions for beginners
+kiteIdeal %>%
+  ggplot(mapping = aes(x = wave_height, y = wind_speed))+
+  geom_point(size = .5)+
+  geom_smooth()+
+  labs(title = "Ideal Kite Conditions Wave vs Wind")
 
-#summary statistics I did this more towards the beginning to find outliers 
-wave %>%
-  summarise(mean = mean(wave_height))
+wind %>%
+  filter(wind_speed > 12 & wind_speed <16 & wind_direction > 140 & wind_direction < 340)%>%
+  ggplot(mapping = aes(x = wind_direction, y = wind_speed))+
+  geom_point()+
+  labs(title = "Wind Direction of Ideal Kite Conditions")
 
-wave2 %>%
-  summarise(mean = mean(wave_height), meanPeriod = mean(wave_period), meanDirection = mean(wave_direction))
-
-wave3 %>%
-  summarise(mean = mean(wave_height), min = min(wave_height), max = max(wave_height), meanPeriod = mean(wave_period), meanDirection = mean(wave_direction))
+kiteIdeal %>%
+  select(date_time, month_date, year_date, wave_height, wind_speed)%>%
+  group_by(month_date)%>%
+  count(month_date)%>%
+  ggplot(data = kideal, mapping = aes(x = month_date, y = n))+
+  geom_bar(stat = 'identity')+
+  labs(title = "Number of Observations for Ideal Kiting")
 

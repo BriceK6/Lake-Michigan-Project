@@ -115,8 +115,8 @@ ggplot(data = wavewind, mapping = aes(x = wind_direction, y = wave_height))+
 <!-- ``` -->
 
 
-![Imange of the beach angle at Muskegon](~/STA 518/Activities/LM-data/beach.png)
-![Imange of Lake Michigan](~/STA 518/Activities/LM-data/beach_full.png)
+![Imange of the beach angle at Muskegon](beach.png)
+![Imange of Lake Michigan](beach_full.png)
 
 
 graph monthly averages of wave height and wind speed
