@@ -21,7 +21,7 @@ library(lubridate)
 
 ```
 
-change to shorter column names
+#### Change to shorter column names  
 ```{r column names}
 lake <- lake %>%
    rename(
@@ -40,7 +40,7 @@ lake <- lake %>%
    )
 ```
 
-add month and year to table
+#### Add month and year columns  
 ```{r create month and year column}
 lake$date_time <- mdy_hm(lake$date_time)
  
@@ -63,7 +63,7 @@ lake %>%
   filter(is.na(month_date), is.na(year_date))
 ```
 
-finding missing and incorrect data
+#### Finding missing and incorrect data  
 ```{r finding missing data}
 lake %>%
   summarise(meanWind = mean(wind_speed), minWind = min(wind_speed), maxWind = max(wind_speed))
@@ -78,7 +78,7 @@ lake %>%
   summarise(meanWave = mean(wave_height), minWave = min(wave_height), maxWave = max(wave_height))
 
 ```
-plot relationship between wind speed and wave size
+#### Plot relationship between wind speed and wave size  
 ```{r full data wind vs wave}
 wavewind <- lake %>%
   select(date_time, wind_speed, wave_height, wind_direction, wave_direction, month_date, year_date ) %>%
@@ -91,8 +91,15 @@ ggplot(data = wavewind, mapping = aes(x = wind_speed, y = wave_height))+
   labs(title = "Wind Speed vs. Wave Height")
 
 ```
+```{r linear regression}
+cor(wavewind$wind_speed, wavewind$wave_height)
+l_reg <- lm(data = wavewind, wave_height ~ wind_speed)
+print(summary(l_reg))
+```
 
-plot wave height based on wind direction , 245 is parallel
+
+
+#### Plot wave height based on wind direction , 270 is West 
 ```{r wave height based on wind direction}
 wavewind %>%
   select(wind_direction)%>%
@@ -107,6 +114,9 @@ ggplot(data = wavewind, mapping = aes(x = wind_direction, y = wave_height))+
 
 ```
 
+##### Notice clusters around 180 "S and SW winds" and 320 "NW winds"  
+  - this could be explained by more fetch distance across Lake Michigan.  
+
 <!-- Images of the beach angle at Muskegon -->
 <!-- # ```{r images} -->
 <!-- knitr::include_graphics('~/STA 518/Activities/LM-data/beach.png') -->
@@ -119,12 +129,12 @@ ggplot(data = wavewind, mapping = aes(x = wind_direction, y = wave_height))+
 ![Imange of Lake Michigan](beach_full.png)
 
 
-graph monthly averages of wave height and wind speed
+#### Graph monthly averages of wave height and wind speed  
 ```{r monthly averages}
-lake %>%
+byMonthYear <- lake %>%
     select(date_time, month_date, year_date, wave_height, wind_speed)%>%
     filter(wave_height >=0 & wave_height < 30, wind_speed >= 0 & wind_speed < 100)%>%
-    group_by(month_date)%>%
+    group_by(month_date, year_date)%>%
     summarise(waveH = mean(wave_height), windS = mean(wind_speed))
 
     # Doing the same thing with already filtered subset, Wave 
@@ -148,13 +158,8 @@ wavewind %>%
 ```
 
 
-Graph by month and year, missing data makes it less pretty.
+#### Graph monthly averages by year, show variation  
 ```{r by month and year}
-byMonthYear <- lake %>%
-  select(date_time, month_date, year_date, wave_height, wind_speed)%>%
-  filter(wave_height >=0 & wave_height < 30, wind_speed >= 0 & wind_speed < 100)%>%
-  group_by(month_date, year_date)%>%
-  summarise(waveH = mean(wave_height), windS = mean(wind_speed))
 
 byMonthYear %>%
   ggplot(mapping = aes(x = month_date,label=TRUE, abbr=TRUE, y = waveH, colour = year_date),
@@ -172,9 +177,11 @@ byMonthYear %>%
   geom_point() +
   labs(title = "Yearly Monthly Wind Speed Averages", x="Month", y = "Wind Speed")+
   theme_classic()
+
+
 ```
 
-Here is a crazy graph of what I was really trying to do. I couldn't figure out how to get the averages of each year.
+##### Here is a crazy graph of what I was really trying to do. I couldn't figure out how to get the averages of each year at first.  
 ```{r Incorrect month by year graph}
 lake %>%
   select(date_time, month_date, year_date, wave_height, wind_speed)%>%
@@ -189,7 +196,29 @@ lake %>%
 
 ```
 
-#Focusing on wind data for kiting
+
+#### Fixed
+```{r fixed yearly monthly graph wave height}
+byMonthYear %>%
+  ggplot(mapping = aes(x = month_date,label=TRUE, abbr=TRUE, y = waveH, colour = factor(year_date)),
+         group=factor(year_date))+
+  geom_line(aes(group = year_date)) +
+  geom_point() +
+  labs(title = "Monthly Average Wave Height by Year", x="Month", y = "Wave Height", color = "Year")+
+  theme_classic()
+```
+
+```{r Monthly Average Wind Speed by Year}
+byMonthYear %>%
+  ggplot(mapping = aes(x = month_date,label=TRUE, abbr=TRUE, y = windS, colour = factor(year_date)),
+         group=factor(year_date))+
+  geom_line(aes(group = year_date)) +
+  geom_point() +
+  labs(title = "Monthly Average Wind Speed by Year", x="Month", y = "Wave Height", color = "Year")+
+  theme_classic()
+```
+
+### Focusing on wind data for kiting  
 ```{r wind sets}
 wind <- tibble(lake[,c(1:4,14,15)]) %>%
   filter(wind_speed >= 0 & wind_speed < 194)
@@ -204,7 +233,7 @@ wind <- wind %>%
   mutate(mph = wind_speed*1.15078)
 ```
 
-#focusing on wave data
+#### Focusing on wave data
 ```{r wave set}
 wave <- tibble(lake[,c(1,6:8, 14:15)])
 #removing missing wave height and wave period
@@ -220,7 +249,7 @@ wave2 %>%
   summarize(mean(wave_direction), min(wave_direction), max(wave_direction))
 ```
 
-#surfable waves
+#### Surfable waves, notice missing data for November
 ```{r surfable waves}
 surfWave <- subset(wave2, wave2$wave_height >= 2.5)
 surfWave %>%
@@ -237,7 +266,8 @@ wave %>%
 
 ```
 
-Here are "ideal" surfing conditions for somewhere like Maui or California. These condititions are very rare in Michigan. We take any waves.
+
+#### Here are "ideal" surfing conditions for somewhere like Maui or California. These conditions are very rare in Michigan. We take any waves.
 ```{r ideal surfing conditions}
 
 surfIdeal <- wavewind %>%
@@ -290,7 +320,7 @@ surfIdeal %>%
 
 ```
 
-Ideal conditions for beginner kiters
+#### Ideal conditions for beginner kiters  
 ```{r ideal kiting conditions}
 kiteIdeal <- wavewind %>%
   filter(wind_speed > 12 & wind_speed <16 & wave_height < 2.5 & wind_direction > 140 & wind_direction < 340)
@@ -316,13 +346,14 @@ kiteIdeal %>%
   labs(title = "Number of Observations for Ideal Kiting")
 ```
 
-Closing conclusions:
-- Wind speed and wave height have a positive correlation
-- Wind speed and wave height are both higher in the fall
-- There seems to be a pattern between wind direction and wave height possibly due to the fetch of the lake
-      - "The maximum length of open water that wind can travel across"
-- Most surfing occurs in the fall but those rare occasions of Maui like conditions may occur more frequently in the summer
-- Most kiting also occurs in the fall, but for beginners who need a decent amount of wind without too many waves, the summer is the best time to learn. 
+## Closing conclusions:  
+- Wind speed and wave height have a positive correlation.    
+- Wind speed and wave height are both higher in the fall.    
+- There seems to be a pattern between wind direction and wave height possibly due to the fetch of the lake.    
+      - "The maximum length of open water that wind can travel across"    
+- Most surfing occurs in the fall but those rare occasions of Maui like conditions may occur more frequently in the summer.    
+- Most kiting also occurs in the fall, but for beginners who need a decent amount of wind without too many waves, the summer is the best time to learn.  
+- Note: We would see much higher wind speed and wave height for early spring and late fall, we have missing data because the sensors cannot be in freezing conditions. I was more focused on fall vs summer months because the water temperature in the spring time is still near freezing. Water temperature in the fall is still warm from the summer.  
 
 
 

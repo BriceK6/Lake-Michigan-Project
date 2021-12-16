@@ -113,6 +113,12 @@ wavewind <- lake %>%
   filter(wind_speed >= 0 & wind_speed < 150, wave_height >= 0 & wave_height < 30, wind_direction >= 0 & wind_direction <= 360, wave_direction >=0 & wave_direction <= 360) %>%
   arrange(date_time)
 
+byMonthYear <- lake %>%
+  select(date_time, month_date, year_date, wave_height, wind_speed)%>%
+  filter(wave_height >=0 & wave_height < 30, wind_speed >= 0 & wind_speed < 100)%>%
+  group_by(month_date, year_date)%>%
+  summarise(waveH = mean(wave_height), windS = mean(wind_speed))
+
 surfIdeal <- wavewind %>%
   filter(wind_speed > 0 & wind_speed < 10, wave_height >= 2.5 & wave_height < 300)%>%
   arrange(desc(wave_height))
@@ -204,7 +210,7 @@ wavewind %>%
     
     #Same thing but with the original dataset only filtering out wind and wave
     # notice only one more year was added
-lake %>%
+byMonthYear <- lake %>%
   select(date_time, month_date, year_date, wave_height, wind_speed)%>%
   filter(wave_height >=0 & wave_height < 30, wind_speed >= 0 & wind_speed < 100)%>%
   group_by(month_date, year_date)%>%
@@ -217,22 +223,74 @@ yearMonth <- lake %>%
 lake %>%
   select(date_time, month_date, year_date, wave_height, wind_speed)%>%
   filter(wave_height >=0 & wave_height < 30, wind_speed >= 0 & wind_speed < 100)%>%
-  group_by(month_date, year_date)%>%
+  group_by(month_date, year_date) %>%
   ggplot(mapping = aes(month(date_time, label=TRUE, abbr=TRUE), 
-     group=factor(year(date_time)), y = yearmon(wave_height), colour=factor(year(date_time)))) +
+     group=factor(year(date_time)), y = wave_height, colour=factor(year(date_time)))) +
+  geom_line() +
+  geom_point() +
+  labs(x="Month", colour="Year") +
+  theme_classic()
+ 
+      #FIX
+lake %>%
+  select(date_time, month_date, year_date, wave_height, wind_speed)%>%
+  filter(wave_height >=0 & wave_height < 30, wind_speed >= 0 & wind_speed < 100)%>%
+  group_by(month_date, year_date) %>%
+  summarize(waveH = mean(wave_height))%>%
+  ggplot(mapping = aes(month(date_time, label=TRUE, abbr=TRUE), 
+                       group=factor(year(date_time)), y = wave_ave, colour=factor(year(date_time)))) +
   geom_line() +
   geom_point() +
   labs(x="Month", colour="Year") +
   theme_classic()
 
+    #scratch 
+lake %>%
+  select(date_time, month_date, year_date, wave_height, wind_speed)%>%
+  filter(wave_height >=0 & wave_height < 30, wind_speed >= 0 & wind_speed < 100)%>%
+  group_by(month_date, year_date) %>%
+  summarize(waveH = mean(wave_height))
+        #FIX
+lake %>%
+  select(month_date, year_date, wave_height, wind_speed)%>%
+  filter(wave_height >=0 & wave_height < 30, wind_speed >= 0 & wind_speed < 100)%>%
+  group_by(month_date)%>%
+  summarize(waveH = mean(wave_height), month_date, year_date)%>%
+  ggplot(mapping = aes(x = month_date, y = waveH, colour = factor(year_date)))+ 
+                     #  group=factor(year_date, y = waveH, colour=factor(year_date))) +
+  geom_line() +
+  geom_point() +
+  labs(x="Month", y = "Wave Height", colour="Year") +
+  theme_classic()
+
 #show variance in yearly monthly averages
 byMonthYear %>%
-  ggplot(mapping = aes(x = month_date,label=TRUE, abbr=TRUE, y = waveH, colour = year_date),
+  ggplot(mapping = aes(x = month_date,label=TRUE, abbr=TRUE, y = waveH, colour = factor(year_date)),
          group=factor(year_date))+
+  geom_line() +
+  geom_point() +
+  labs(title = "Monthly Average Wave Height by Year", x="Month", y = "Wave Height", color = "Year")+
+  theme_classic()
+
+# group factor by month
+byMonthYear %>%
+  ggplot(mapping = aes(x = month_date,label=TRUE, abbr=TRUE, y = windS, colour = year_date),
+         group=factor(month_date))+
+  geom_line() +
+  geom_point() +
+  labs(title = "Yearly Monthly Wind Speed Averages", x="Month", y = "Wind Speed")+
+  theme_classic()
+
+   # fix
+byMonthYear %>%
+  ggplot(mapping = aes(x = month_date,label=TRUE, abbr=TRUE, y = waveH, colour = year_date),
+         group=factor(waveH))+
   geom_line() +
   geom_point() +
   labs(x="Month", y = "Wave Height")+
   theme_classic()
+
+
 
 lake %>%
   select(date_time, month_date, wave_height, wind_speed)%>%
@@ -262,3 +320,6 @@ kiteIdeal %>%
   geom_bar(stat = 'identity')+
   labs(title = "Number of Observations for Ideal Kiting")
 
+cor(wavewind$wind_speed, wavewind$wave_height)
+l_reg <- lm(data = wavewind, wave_height ~ wind_speed)
+print(summary(l_reg))
